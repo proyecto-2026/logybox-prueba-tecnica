@@ -1,0 +1,51 @@
+rules_version = '2';
+
+// Reglas de seguridad - LOGYBOX Prueba Tecnica
+// Pega este contenido en: Firebase Console > Firestore Database > Reglas > Publicar
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ¿El usuario autenticado esta registrado como admin?
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Lista de administradores. Se crea manualmente desde la consola de Firebase.
+    match /admins/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if false; // solo desde la consola de Firebase
+    }
+
+    // Prueba COMPLETA (con los puntos de cada opcion): solo el admin.
+    match /config/test {
+      allow read, write: if isAdmin();
+    }
+
+    // Prueba PUBLICA (sin puntos): cualquier usuario autenticado (candidatos).
+    match /config/testPublic {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Candidatos: el admin los gestiona; cada candidato puede leer su propio
+    // perfil y solo marcar su prueba como completada.
+    match /candidates/{uid} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (request.auth != null && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'submittedAt']));
+    }
+
+    // Respuestas enviadas: el candidato crea la suya UNA sola vez
+    // (create falla si ya existe); solo el admin las lee y califica.
+    match /submissions/{uid} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update, delete: if isAdmin();
+    }
+  }
+}

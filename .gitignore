@@ -1,0 +1,6 @@
+# dependencias y datos de la version local (no se suben a la web)
+version-local/node_modules/
+version-local/data/
+
+# sistema
+.DS_Store

@@ -28,7 +28,7 @@ Plataforma para aplicar la prueba técnica de **Asesor de Servicio al Cliente** 
 
 ### A4. Crear tu usuario administrador
 1. En **Authentication → Users → Agregar usuario**:
-   - Correo: `logybox_admin@logybox-pruebas.com`  *(no necesita existir, es interno)*
+   - Correo: `prueba@logybox.com` (en minúsculas)
    - Contraseña: `LBX2026`
 2. Al crearlo, **copia su UID** (columna "UID de usuario", es un código largo).
 
@@ -46,7 +46,7 @@ Plataforma para aplicar la prueba técnica de **Asesor de Servicio al Cliente** 
 3. ID del documento: **pega el UID que copiaste en A4**.
 4. Agrega un campo: `role` (string) = `admin` → Guardar.
 
-> Con esto, quien inicie sesión como `LOGYBOX_ADMIN` / `LBX2026` tendrá acceso al panel.
+> Con esto, quien inicie sesión como `prueba@logybox.com` / `LBX2026` tendrá acceso al panel.
 
 ---
 
@@ -81,7 +81,7 @@ Plataforma para aplicar la prueba técnica de **Asesor de Servicio al Cliente** 
 ## ▶️ PARTE C — Primer uso
 
 1. Abre `https://TU_USUARIO.github.io/logybox-prueba-tecnica/admin.html`
-2. Inicia sesión: **LOGYBOX_ADMIN** / **LBX2026**
+2. Inicia sesión: **prueba@logybox.com** / **LBX2026**
 3. Pestaña **Editar prueba** → botón **"Cargar prueba por defecto"** (sube las 38 preguntas a Firebase; puedes editarlas después).
 4. Pestaña **Candidatos** → crea usuario y contraseña para cada persona y entrégaselos.
 5. El candidato entra a `https://TU_USUARIO.github.io/logybox-prueba-tecnica/` y presenta la prueba.

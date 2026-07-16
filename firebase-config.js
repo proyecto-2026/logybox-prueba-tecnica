@@ -1,23 +1,18 @@
 // ============================================================
 //  CONFIGURACION DE FIREBASE - LOGYBOX Prueba Tecnica
+//  Proyecto: logybox-prueba
 // ============================================================
-//  1. Entra a https://console.firebase.google.com
-//  2. Crea un proyecto (ej: "logybox-prueba-tecnica")
-//  3. Agrega una App Web (icono </>) y copia el objeto
-//     "firebaseConfig" que te muestra.
-//  4. Pega aqui abajo tus valores reales reemplazando los
-//     que dicen PEGA_AQUI.
-//
-//  Nota: estas claves son publicas por diseño (Firebase las
-//  expone en el navegador). La seguridad real esta en las
-//  reglas de Firestore (archivo firestore.rules).
+//  Estas claves son publicas por diseño (Firebase las expone
+//  en el navegador). La seguridad real esta en las reglas de
+//  Firestore (archivo firestore.rules).
 // ============================================================
 
 export const firebaseConfig = {
-  apiKey: "PEGA_AQUI_TU_API_KEY",
-  authDomain: "PEGA_AQUI.firebaseapp.com",
-  projectId: "PEGA_AQUI_TU_PROJECT_ID",
-  storageBucket: "PEGA_AQUI.appspot.com",
-  messagingSenderId: "PEGA_AQUI",
-  appId: "PEGA_AQUI",
+  apiKey: "AIzaSyDYGBzxXDXLXKtQ53Ez0VOZYY70iVsiynM",
+  authDomain: "logybox-prueba.firebaseapp.com",
+  projectId: "logybox-prueba",
+  storageBucket: "logybox-prueba.firebasestorage.app",
+  messagingSenderId: "118654288163",
+  appId: "1:118654288163:web:dab38e145d4729a1918c96",
+  measurementId: "G-N2Z503134P",
 };

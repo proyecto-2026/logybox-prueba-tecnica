@@ -6,7 +6,9 @@
 //
 //  Tipos de pregunta:
 //   · "single" — opción múltiple. Cada opción tiene puntos:
-//        3 = respuesta ideal · 2 = buena · 1 = aceptable · 0 = no encaja
+//        3 = respuesta ideal · 2 = buena · 1 = parcial · 0 = no encaja
+//     Las opciones están diseñadas para NO ser obvias: varias suenan
+//     profesionales y el puntaje distingue el criterio real del cargo.
 //   · "scale"  — autoevaluación de 1 a 5 (puntos = valor elegido)
 //   · "text"   — respuesta abierta; la califica el admin (maxPoints)
 // ============================================================
@@ -30,10 +32,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Un cliente escribe muy molesto: su envío lleva 3 días de retraso y exige una respuesta inmediata. ¿Qué haces primero?",
     opciones: [
-      { texto: "Le explico la política de la empresa sobre los retrasos.", puntos: 1 },
-      { texto: "Reconozco su molestia, me disculpo y le confirmo que reviso su caso de inmediato.", puntos: 3 },
-      { texto: "Le pido que espere mientras consulto con mi supervisor.", puntos: 2 },
-      { texto: "Le aclaro que los retrasos no dependen de mí.", puntos: 0 },
+      { texto: "Le pido los datos del envío y le informo que voy a revisar qué ocurrió.", puntos: 2 },
+      { texto: "Reconozco su molestia, me disculpo por la experiencia y le confirmo que reviso su caso de inmediato.", puntos: 3 },
+      { texto: "Le comparto el estado actual del envío según el sistema, que es la información disponible.", puntos: 1 },
+      { texto: "Traslado el caso a la transportadora, ya que el retraso ocurrió en su operación.", puntos: 0 },
     ],
   },
   {
@@ -42,10 +44,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Recibes 5 chats al mismo tiempo en hora pico. ¿Cómo los manejas?",
     opciones: [
-      { texto: "Los respondo en orden de llegada, sin importar el tipo de caso.", puntos: 1 },
-      { texto: "Identifico los urgentes (entregas fallidas, cobros errados), los priorizo y aviso a los demás un tiempo estimado de espera.", puntos: 3 },
-      { texto: "Atiendo primero los más fáciles para bajar el volumen rápido.", puntos: 1 },
-      { texto: "Dejo de responder hasta que llegue apoyo del equipo.", puntos: 0 },
+      { texto: "Los atiendo estrictamente en orden de llegada, para ser justo con todos.", puntos: 1 },
+      { texto: "Reviso rápido los cinco, priorizo los críticos y a los demás les doy un tiempo estimado de respuesta.", puntos: 3 },
+      { texto: "Los abro todos a la vez y voy respondiendo según van contestando los clientes.", puntos: 1 },
+      { texto: "Le informo a mi líder que hay sobrecarga y espero indicaciones antes de responder.", puntos: 0 },
     ],
   },
   {
@@ -54,10 +56,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "El cliente pregunta algo que no sabes responder y en ese momento nadie de tu equipo está disponible. ¿Qué haces?",
     opciones: [
-      { texto: "Improviso una respuesta para no dejarlo esperando.", puntos: 0 },
-      { texto: "Le digo que no sé y termino la conversación.", puntos: 0 },
-      { texto: "Le digo con honestidad que debo verificar la información, le doy una hora concreta de respuesta y cumplo ese compromiso.", puntos: 3 },
-      { texto: "Le pido que escriba de nuevo más tarde.", puntos: 1 },
+      { texto: "Le comparto lo que entiendo del tema, aclarándole que es información preliminar.", puntos: 1 },
+      { texto: "Le digo que debo verificarlo, me comprometo con una hora concreta de respuesta y cumplo.", puntos: 3 },
+      { texto: "Le indico qué área maneja ese tema para que consulte directamente allá.", puntos: 1 },
+      { texto: "Espero a que un compañero se conecte para confirmar antes de responderle.", puntos: 0 },
     ],
   },
   {
@@ -66,10 +68,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Un cliente exige un reembolso que la política no permite y amenaza con quejarse en redes sociales. ¿Qué haces?",
     opciones: [
-      { texto: "Cedo y le doy el reembolso para evitar la queja pública.", puntos: 1 },
-      { texto: "Con calma le explico lo que sí puedo ofrecerle según la política y le propongo una alternativa que lo deje satisfecho.", puntos: 3 },
-      { texto: "Le digo que está en su derecho, que la política es la política.", puntos: 1 },
-      { texto: "Lo ignoro esperando que se calme solo.", puntos: 0 },
+      { texto: "Le explico con respeto que las políticas no me permiten hacer excepciones.", puntos: 1 },
+      { texto: "Le detallo lo que sí puedo ofrecerle y le propongo una alternativa concreta que compense lo ocurrido.", puntos: 3 },
+      { texto: "Escalo de inmediato a mi líder: una queja en redes puede volverse un problema de reputación.", puntos: 2 },
+      { texto: "Proceso el reembolso como excepción: retener al cliente vale más que el costo del envío.", puntos: 1 },
     ],
   },
   {
@@ -78,10 +80,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "En un mismo chat, el cliente mezcla tres temas: el rastreo de su envío, una duda de factura y una queja. ¿Cómo organizas la conversación?",
     opciones: [
-      { texto: "Respondo todo junto en un solo mensaje largo.", puntos: 1 },
-      { texto: "Atiendo un tema a la vez: resuelvo, confirmo con el cliente y paso al siguiente.", puntos: 3 },
-      { texto: "Le pido que abra un caso aparte por cada tema.", puntos: 1 },
-      { texto: "Respondo solo lo primero que preguntó.", puntos: 0 },
+      { texto: "Le pregunto cuál de los tres temas es el más urgente para él y empiezo por ese.", puntos: 2 },
+      { texto: "Confirmo los tres temas, los resuelvo uno por uno y verifico con él antes de cerrar.", puntos: 3 },
+      { texto: "Atiendo primero la queja, que es lo más delicado, y le pido abrir casos aparte para el resto.", puntos: 1 },
+      { texto: "Preparo una sola respuesta completa con los tres temas para no alargar la conversación.", puntos: 1 },
     ],
   },
   {
@@ -107,10 +109,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Un cliente te insulta directamente durante la conversación. ¿Cómo reaccionas?",
     opciones: [
-      { texto: "Le respondo en el mismo tono, para ponerle límites.", puntos: 0 },
-      { texto: "Mantengo la calma, no lo tomo personal y llevo la conversación de vuelta a la solución.", puntos: 3 },
-      { texto: "Cierro el chat de inmediato, sin explicación.", puntos: 1 },
-      { texto: "Sigo como si nada hubiera pasado, sin reconocer su molestia.", puntos: 1 },
+      { texto: "Le pido respeto con firmeza y le aclaro que no podré continuar si mantiene ese tono.", puntos: 2 },
+      { texto: "Ignoro el comentario y continúo la atención con total normalidad.", puntos: 1 },
+      { texto: "Respiro, no lo tomo personal y redirijo: “entiendo su molestia, enfoquémonos en resolverlo”.", puntos: 3 },
+      { texto: "Transfiero el caso a un compañero para evitar que el conflicto crezca.", puntos: 0 },
     ],
   },
   {
@@ -119,22 +121,22 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Un cliente descarga contigo su enojo por un error que cometió otro asesor antes que tú. ¿Qué haces?",
     opciones: [
-      { texto: "Le aclaro que yo no fui quien cometió el error.", puntos: 1 },
-      { texto: "Me hago cargo del caso: me disculpo por la mala experiencia y me enfoco en resolverla.", puntos: 3 },
-      { texto: "Le pido que lo hable con el asesor anterior.", puntos: 0 },
-      { texto: "Le respondo cortante: no es mi culpa.", puntos: 0 },
+      { texto: "Le aclaro que fue un error de una gestión anterior y que haré lo posible por corregirlo.", puntos: 1 },
+      { texto: "Me disculpo a nombre de la empresa y me hago cargo del caso hasta resolverlo.", puntos: 3 },
+      { texto: "Reviso el historial para identificar al responsable y reportarlo antes de responder.", puntos: 0 },
+      { texto: "Le ofrezco de entrada una compensación para calmar su molestia.", puntos: 1 },
     ],
   },
   {
     id: "fru5",
     competencia: "frustracion",
     tipo: "single",
-    enunciado: "Cometiste un error con un pedido; el cliente lo nota y se molesta. ¿Qué haces?",
+    enunciado: "Le diste a un cliente una información equivocada (por ejemplo, una fecha de entrega errada). El cliente vuelve molesto porque confió en lo que le dijiste. ¿Qué haces?",
     opciones: [
-      { texto: "Le resto importancia al error para no quedar mal.", puntos: 0 },
-      { texto: "Reconozco el error con honestidad, me disculpo y lo corrijo de inmediato.", puntos: 3 },
-      { texto: "Le explico que fue culpa del sistema o de otra área.", puntos: 0 },
-      { texto: "Me disculpo, pero no corrijo nada.", puntos: 1 },
+      { texto: "Le explico que la información pudo haber cambiado en el sistema después de nuestra conversación.", puntos: 0 },
+      { texto: "Reconozco el error, me disculpo y le doy de inmediato la información correcta ya verificada, con seguimiento.", puntos: 3 },
+      { texto: "Me disculpo y escalo el caso a mi líder para que le entregue la información oficial.", puntos: 1 },
+      { texto: "Le doy la información correcta sin mencionar el error, para no perder su confianza.", puntos: 1 },
     ],
   },
   {
@@ -166,10 +168,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Un cliente reporta que su paquete se perdió, pero el sistema muestra el estado “Entregado”. ¿Qué haces?",
     opciones: [
-      { texto: "Le informo que según el sistema ya fue entregado, y cierro el caso.", puntos: 0 },
-      { texto: "Investigo: confirmo la dirección, contacto a la transportadora y le doy seguimiento al cliente con tiempos claros.", puntos: 3 },
-      { texto: "Le sugiero preguntar a sus vecinos, y cierro el caso.", puntos: 1 },
-      { texto: "Escalo el caso de inmediato, sin recopilar información.", puntos: 1 },
+      { texto: "Le comparto la evidencia de entrega del sistema y le sugiero confirmar con las personas de su dirección.", puntos: 1 },
+      { texto: "Abro una investigación: verifico dirección y evidencia con la transportadora, y me comprometo a un plazo de respuesta.", puntos: 3 },
+      { texto: "Escalo de inmediato a la transportadora: la entrega es responsabilidad de su operación.", puntos: 1 },
+      { texto: "Le ofrezco la reposición inmediata del producto para no hacerle perder más tiempo.", puntos: 0 },
     ],
   },
   {
@@ -178,10 +180,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Un cliente necesita su pedido para mañana sí o sí, pero el envío estándar tarda 3 días. ¿Qué haces?",
     opciones: [
-      { texto: "Le digo que no es posible, y cierro la conversación.", puntos: 0 },
-      { texto: "Reviso alternativas reales (cambio a express, punto de recogida, otra bodega) y le propongo la mejor opción disponible.", puntos: 3 },
-      { texto: "Le prometo que llegará mañana, sin verificar si se puede.", puntos: 0 },
-      { texto: "Le sugiero cancelar el pedido.", puntos: 1 },
+      { texto: "Le explico los tiempos reales del envío estándar para no crearle falsas expectativas.", puntos: 1 },
+      { texto: "Verifico en el sistema si existe una opción real (mejora de servicio, punto de recogida) antes de responderle.", puntos: 3 },
+      { texto: "Le recomiendo cancelar y hacer un nuevo pedido con un servicio más rápido.", puntos: 1 },
+      { texto: "Me comprometo a marcar su envío como prioritario para que llegue antes.", puntos: 0 },
     ],
   },
   {
@@ -190,10 +192,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Te llega un caso con información incompleta. ¿Cuál es el mejor primer paso?",
     opciones: [
-      { texto: "Deducir la respuesta para cerrarlo rápido.", puntos: 0 },
+      { texto: "Escalarlo: sin información completa no debo arriesgarme a responder mal.", puntos: 1 },
       { texto: "Hacer al cliente las preguntas clave que faltan y verificar en el sistema antes de responder.", puntos: 3 },
-      { texto: "Escalarlo de inmediato, sin intentar resolverlo.", puntos: 1 },
-      { texto: "Responder lo que creo y esperar que funcione.", puntos: 0 },
+      { texto: "Responder con la información disponible, aclarando que está sujeta a confirmación.", puntos: 1 },
+      { texto: "Aplicar la solución de un caso parecido que ya haya visto antes.", puntos: 0 },
     ],
   },
   {
@@ -202,17 +204,17 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "¿Cuándo es correcto escalar un caso a tu líder o a otra área?",
     opciones: [
-      { texto: "Siempre que el cliente se molesta.", puntos: 0 },
-      { texto: "Cuando ya agoté lo que está en mis manos o el caso supera mi nivel de autorización — y lo entrego con toda la información lista.", puntos: 3 },
-      { texto: "Nunca: debo resolver absolutamente todo yo.", puntos: 0 },
-      { texto: "Apenas el caso se vea difícil, para no perder tiempo.", puntos: 1 },
+      { texto: "Cuando el cliente lo solicita expresamente.", puntos: 1 },
+      { texto: "Cuando agoté mis herramientas o el caso supera mi autorización — y lo entrego documentado.", puntos: 3 },
+      { texto: "Cuando el caso puede convertirse en una queja formal o afectar la reputación de la empresa.", puntos: 2 },
+      { texto: "Lo ideal es no escalar: cada asesor debe cerrar sus propios casos.", puntos: 0 },
     ],
   },
   {
     id: "res2",
     competencia: "resolutiva",
     tipo: "text",
-    enunciado: "Un cliente pagó envío EXPRESS, pero el paquete llegó en tiempo estándar y él pide el reembolso total. La política solo permite devolver la diferencia del express, no todo el envío. Escribe la respuesta exacta que le enviarías.",
+    enunciado: "Un paquete fue devuelto porque la dirección registrada estaba incompleta (el cliente la diligenció mal). El cliente exige que el reenvío sea gratis, pero la política indica que ese nuevo flete lo asume él. Escribe la respuesta exacta que le enviarías.",
     maxPoints: 4,
   },
   {
@@ -232,10 +234,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Tienes dos tablas: una con números de guía y otra con sus estados. Necesitas traer el estado de cada guía a la primera tabla. ¿Qué función usas?",
     opciones: [
-      { texto: "SUMA", puntos: 0 },
-      { texto: "BUSCARV / VLOOKUP (o BUSCARX / XLOOKUP)", puntos: 3 },
-      { texto: "PROMEDIO", puntos: 0 },
-      { texto: "CONTAR", puntos: 0 },
+      { texto: "CONTAR.SI", puntos: 0 },
+      { texto: "BUSCARV o BUSCARX", puntos: 3 },
+      { texto: "BUSCARH", puntos: 1 },
+      { texto: "SUMAR.SI", puntos: 0 },
     ],
   },
   {
@@ -244,10 +246,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Necesitas contar cuántos envíos de una columna están en estado “Entregado”. ¿Qué función usas?",
     opciones: [
-      { texto: "CONTAR.SI / COUNTIF", puntos: 3 },
-      { texto: "CONTAR / COUNT", puntos: 1 },
-      { texto: "SUMA", puntos: 0 },
-      { texto: "SI / IF", puntos: 0 },
+      { texto: "CONTARA", puntos: 1 },
+      { texto: "CONTAR.SI", puntos: 3 },
+      { texto: "SUMAR.SI", puntos: 1 },
+      { texto: "BUSCARV", puntos: 0 },
     ],
   },
   {
@@ -256,10 +258,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Tienes 500 números de guía y sospechas que hay repetidos. ¿Cuál es la forma más eficiente de encontrarlos?",
     opciones: [
-      { texto: "Revisarlos uno por uno.", puntos: 0 },
-      { texto: "Ordenar la columna alfabéticamente, nada más.", puntos: 1 },
-      { texto: "Usar Formato condicional → Resaltar duplicados (o la herramienta Quitar duplicados).", puntos: 3 },
-      { texto: "Copiar la columna a otra hoja.", puntos: 0 },
+      { texto: "Usar COINCIDIR para comparar la columna contra sí misma.", puntos: 1 },
+      { texto: "Formato condicional → Resaltar valores duplicados.", puntos: 3 },
+      { texto: "Ordenar la columna y revisar visualmente los valores contiguos.", puntos: 1 },
+      { texto: "Usar CONTAR para verificar si el total de filas coincide.", puntos: 0 },
     ],
   },
   {
@@ -268,10 +270,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Una columna trae “Ciudad - Departamento” en la misma celda (ej. “Bogotá - Cundinamarca”) y necesitas separarla en dos columnas. ¿Qué usas?",
     opciones: [
-      { texto: "Lo separo a mano, fila por fila.", puntos: 0 },
-      { texto: "Datos → Texto en columnas (o funciones como IZQUIERDA / DERECHA / ENCONTRAR).", puntos: 3 },
-      { texto: "BUSCARV.", puntos: 0 },
-      { texto: "Copiar y pegar.", puntos: 0 },
+      { texto: "Datos → Texto en columnas, usando el guion como separador.", puntos: 3 },
+      { texto: "Formato de celdas → Personalizado, definiendo dos secciones.", puntos: 0 },
+      { texto: "Funciones de texto como IZQUIERDA + ENCONTRAR (o DIVIDIRTEXTO).", puntos: 2 },
+      { texto: "Una tabla dinámica con ambos campos.", puntos: 0 },
     ],
   },
   {
@@ -280,10 +282,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Tienes 2.000 filas de envíos y necesitas un resumen: cuántos hay por cada estado (Entregado, En tránsito, Devuelto). ¿Cuál es la forma más eficiente?",
     opciones: [
-      { texto: "Filtrar y contar a mano cada estado.", puntos: 1 },
-      { texto: "Una tabla dinámica.", puntos: 3 },
-      { texto: "Revisar fila por fila.", puntos: 0 },
-      { texto: "Solo ordenar por estado.", puntos: 1 },
+      { texto: "Filtrar cada estado y anotar el conteo que muestra la barra inferior.", puntos: 1 },
+      { texto: "Una tabla dinámica con el estado en filas y el conteo como valor.", puntos: 3 },
+      { texto: "Una celda con CONTAR.SI por cada estado.", puntos: 2 },
+      { texto: "Ordenar por estado y usar subtotales.", puntos: 1 },
     ],
   },
   {
@@ -292,10 +294,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "De un reporte de 1.000 guías necesitas ver únicamente las de Medellín que están en estado “Devuelto”. ¿Qué haces?",
     opciones: [
-      { texto: "Activo los filtros (Datos → Filtro) y filtro por ciudad y estado a la vez.", puntos: 3 },
-      { texto: "Busco “Medellín” con Ctrl+F, una por una.", puntos: 0 },
-      { texto: "Ordeno por ciudad y voy revisando.", puntos: 1 },
-      { texto: "Imprimo el reporte y las marco con resaltador.", puntos: 0 },
+      { texto: "Filtro por ciudad, copio el resultado a otra hoja y allí filtro por estado.", puntos: 1 },
+      { texto: "Activo los filtros y aplico los dos criterios a la vez, cada uno en su columna.", puntos: 3 },
+      { texto: "Uso CONTAR.SI.CONJUNTO con los dos criterios.", puntos: 1 },
+      { texto: "Ordeno por ciudad y luego por estado, para que queden juntas.", puntos: 1 },
     ],
   },
   {
@@ -304,22 +306,22 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Copias una fórmula hacia abajo, pero necesitas que una celda de referencia quede fija (que no se mueva). ¿Cómo lo logras?",
     opciones: [
-      { texto: "Con referencia absoluta usando $ (ej. $B$2).", puntos: 3 },
-      { texto: "Escribiendo el valor a mano en cada fila.", puntos: 1 },
-      { texto: "No se puede hacer.", puntos: 0 },
-      { texto: "Cambiando el formato de la celda.", puntos: 0 },
+      { texto: "Con el signo $ en la referencia (ej. $B$2).", puntos: 3 },
+      { texto: "Con la función FIJAR sobre esa celda.", puntos: 0 },
+      { texto: "Bloqueando la celda desde Revisar → Proteger hoja.", puntos: 0 },
+      { texto: "Asignándole un nombre a la celda y usando ese nombre en la fórmula.", puntos: 2 },
     ],
   },
   {
     id: "exc8",
     competencia: "excel",
     tipo: "single",
-    enunciado: "Quieres que una celda muestre “URGENTE” si el envío lleva más de 2 días sin moverse, y “OK” si no. ¿Qué función usas?",
+    enunciado: "Quieres que una celda muestre el texto “URGENTE” si el envío lleva más de 2 días sin moverse, y “OK” si no. ¿Qué usas?",
     opciones: [
-      { texto: "SUMA", puntos: 0 },
-      { texto: "SI / IF (con una condición)", puntos: 3 },
-      { texto: "CONTAR", puntos: 0 },
-      { texto: "PROMEDIO", puntos: 0 },
+      { texto: "La función SI con esa condición.", puntos: 3 },
+      { texto: "La función SI.ERROR.", puntos: 1 },
+      { texto: "Formato condicional con una regla de 2 días.", puntos: 1 },
+      { texto: "BUSCARV contra una tabla de estados.", puntos: 0 },
     ],
   },
   {
@@ -343,12 +345,12 @@ export const PREGUNTAS = [
     id: "emp1",
     competencia: "empatia",
     tipo: "single",
-    enunciado: "Un cliente adulto mayor no logra rastrear su pedido y está frustrado. ¿Cómo lo atiendes?",
+    enunciado: "Un cliente difícil no logra rastrear su pedido, dice que “la página no sirve” y descarga su frustración contigo. ¿Cómo lo atiendes?",
     opciones: [
-      { texto: "Le envío el link de rastreo y doy el caso por resuelto.", puntos: 1 },
-      { texto: "Le explico paso a paso, con lenguaje simple, y me ofrezco a hacerlo por él si lo prefiere.", puntos: 3 },
-      { texto: "Le digo que es muy fácil y que lo intente otra vez.", puntos: 0 },
-      { texto: "Le sugiero pedir ayuda a un familiar más joven.", puntos: 1 },
+      { texto: "Le explico paso a paso cómo usar el rastreo, para que pueda hacerlo solo la próxima vez.", puntos: 2 },
+      { texto: "Rastreo el pedido yo mismo, le doy el estado de una vez y después le comparto el paso a paso por si lo quiere.", puntos: 3 },
+      { texto: "Le comparto el enlace directo de rastreo con las instrucciones oficiales.", puntos: 1 },
+      { texto: "Le pido capturas de pantalla del error para reportarlo al área técnica.", puntos: 1 },
     ],
   },
   {
@@ -357,10 +359,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "El pedido era un regalo de cumpleaños y llegó un día tarde: la sorpresa se arruinó. El cliente te lo cuenta dolido. ¿Cómo respondes?",
     opciones: [
-      { texto: "Le explico que los tiempos de envío son estimados.", puntos: 0 },
-      { texto: "Valido lo que siente, me disculpo con sinceridad y busco un gesto que lo compense (un cupón, prioridad en su próximo envío).", puntos: 3 },
-      { texto: "Le digo que al menos el pedido ya llegó.", puntos: 0 },
-      { texto: "Le recomiendo comprar con más anticipación la próxima vez.", puntos: 0 },
+      { texto: "Le aclaro que los tiempos de entrega son estimados y no garantizados, como se acepta al comprar.", puntos: 0 },
+      { texto: "Valido lo que siente, me disculpo con sinceridad y gestiono un gesto que lo compense.", puntos: 3 },
+      { texto: "Me disculpo brevemente y le confirmo que el pedido ya fue entregado completo.", puntos: 1 },
+      { texto: "Le explico la causa exacta del retraso para que vea que no fue negligencia.", puntos: 1 },
     ],
   },
   {
@@ -393,10 +395,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Notas que un proceso interno está generando muchas quejas de clientes. ¿Qué haces?",
     opciones: [
-      { texto: "No es mi área: sigo respondiendo las quejas una por una.", puntos: 0 },
-      { texto: "Documento el patrón y se lo reporto a mi líder junto con una propuesta de mejora.", puntos: 3 },
-      { texto: "Me quejo del proceso con mis compañeros.", puntos: 0 },
-      { texto: "Espero a que alguien más lo reporte.", puntos: 1 },
+      { texto: "Sigo el conducto regular: mi función es resolver las quejas, no modificar los procesos.", puntos: 0 },
+      { texto: "Documento el patrón con casos concretos y lo llevo a mi líder junto con una propuesta.", puntos: 3 },
+      { texto: "Lo planteo en la reunión de equipo para validar si a los demás les pasa lo mismo.", puntos: 2 },
+      { texto: "Se lo comento verbalmente a mi líder para que esté enterado.", puntos: 1 },
     ],
   },
   {
@@ -405,10 +407,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Un amigo te pregunta por la empresa donde trabajas. ¿Qué sueles hacer?",
     opciones: [
-      { texto: "Si tuve un mal día, hablo mal de ella.", puntos: 0 },
-      { texto: "Hablo con orgullo de lo que hacemos bien; si hay algo por mejorar, lo digo con respeto.", puntos: 3 },
-      { texto: "Evito el tema.", puntos: 1 },
-      { texto: "Digo que es “solo un trabajo más”.", puntos: 0 },
+      { texto: "Soy totalmente neutral: cuento lo bueno y lo malo tal cual, sin filtro.", puntos: 1 },
+      { texto: "Hablo con orgullo de lo que hacemos bien; si hay cosas por mejorar, las menciono con respeto.", puntos: 3 },
+      { texto: "Prefiero no mezclar el trabajo con mi vida personal y cambio de tema.", puntos: 1 },
+      { texto: "Depende del día que haya tenido en el trabajo.", puntos: 0 },
     ],
   },
   {
@@ -417,10 +419,10 @@ export const PREGUNTAS = [
     tipo: "single",
     enunciado: "Termina tu turno y queda un caso urgente que no alcanzas a cerrar. ¿Qué haces?",
     opciones: [
-      { texto: "Me voy: mi turno ya terminó.", puntos: 0 },
-      { texto: "Lo dejo documentado y bien entregado al siguiente turno — o lo cierro yo si es rápido.", puntos: 3 },
-      { texto: "Lo cierro sin resolver, para que no quede pendiente a mi nombre.", puntos: 0 },
-      { texto: "Lo dejo abierto sin avisarle a nadie.", puntos: 0 },
+      { texto: "Le aviso a mi líder que quedó pendiente y me retiro: el descanso también importa.", puntos: 1 },
+      { texto: "Lo dejo documentado y entregado formalmente al siguiente turno — o lo cierro yo si es breve.", puntos: 3 },
+      { texto: "Me quedo el tiempo que sea necesario hasta cerrarlo yo mismo.", puntos: 2 },
+      { texto: "Lo dejo en la cola: el sistema lo asignará automáticamente a otro asesor.", puntos: 0 },
     ],
   },
   {

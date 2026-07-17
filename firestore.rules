@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Reglas de seguridad - LOGYBOX Prueba Tecnica
+// Reglas de seguridad - LOGYBOX Prueba Tecnica (ingreso por correo habilitado)
 // Pega este contenido en: Firebase Console > Firestore Database > Reglas > Publicar
 
 service cloud.firestore {
@@ -11,11 +11,15 @@ service cloud.firestore {
       return request.auth != null
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
+    function candidato(id) {
+      return get(/databases/$(database)/documents/candidates/$(id)).data;
+    }
 
-    // Lista de administradores. Se crea manualmente desde la consola de Firebase.
+    // Lista de administradores (se crea manualmente desde la consola).
     match /admins/{uid} {
-      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
-      allow write: if false; // solo desde la consola de Firebase
+      allow get:  if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow write: if false;
     }
 
     // Prueba COMPLETA (con los puntos de cada opcion): solo el admin.
@@ -23,28 +27,33 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Prueba PUBLICA (sin puntos): cualquier usuario autenticado (candidatos).
+    // Prueba PUBLICA (sin puntos): cualquier usuario autenticado (incluye anonimo).
     match /config/testPublic {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
 
-    // Candidatos: el admin los gestiona; cada candidato puede leer su propio
-    // perfil y solo marcar su prueba como completada.
-    match /candidates/{uid} {
-      allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+    // Correos habilitados. El candidato (anonimo) puede LEER su propio correo
+    // para verificar si esta habilitado, y marcar su nombre/estado al presentar.
+    // NO puede listar la coleccion completa (eso solo el admin).
+    match /candidates/{emailKey} {
+      allow get:  if request.auth != null;
+      allow list: if isAdmin();
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
-        || (request.auth != null && request.auth.uid == uid
+        || (request.auth != null
             && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['status', 'submittedAt']));
+                 .hasOnly(['name', 'status', 'submittedAt']));
     }
 
-    // Respuestas enviadas: el candidato crea la suya UNA sola vez
-    // (create falla si ya existe); solo el admin las lee y califica.
-    match /submissions/{uid} {
-      allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
-      allow create: if request.auth != null && request.auth.uid == uid;
+    // Respuestas enviadas. El candidato crea la suya UNA sola vez (create falla
+    // si ya existe) y solo si su correo esta habilitado y no ha completado.
+    match /submissions/{emailKey} {
+      allow get:  if request.auth != null;
+      allow list: if isAdmin();
+      allow create: if request.auth != null
+        && exists(/databases/$(database)/documents/candidates/$(emailKey))
+        && candidato(emailKey).status != 'completed';
       allow update, delete: if isAdmin();
     }
   }

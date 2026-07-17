@@ -1,12 +1,12 @@
 import { logoSVG, el, esc, renderNotConfigured } from "./common.js";
 import {
   configured, auth, db, doc, getDoc, setDoc, updateDoc,
-  signInWithEmailAndPassword, signOut, currentUser, toEmail, niceError,
+  signInAnonymously, signOut, currentUser, emailKey, isValidEmail, niceError,
 } from "./firebase.js";
 
 const app = document.getElementById("app");
 let TEST = null;
-let CAND = null; // { uid, name, username, status }
+let CAND = null; // { key, email, name }
 let answers = {};
 let step = 0;
 
@@ -14,42 +14,17 @@ let step = 0;
 init();
 async function init() {
   if (!configured) return renderNotConfigured(app);
-  const user = await currentUser();
-  if (user) {
-    const ok = await loadCandidate(user);
-    if (ok) return afterLogin();
-    await signOut(auth); // sesion de un no-candidato (ej. admin): fuera
+  // Sesion anonima: permite guardar en Firebase sin contraseña, de forma segura.
+  let user = await currentUser();
+  if (!user) {
+    try { user = (await signInAnonymously(auth)).user; }
+    catch (e) { return renderMessage("No se pudo iniciar la prueba. " + niceError(e)); }
   }
-  renderLogin();
+  renderEmail();
 }
 
-async function loadCandidate(user) {
-  try {
-    const snap = await getDoc(doc(db, "candidates", user.uid));
-    if (!snap.exists()) return false;
-    CAND = { uid: user.uid, ...snap.data() };
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function afterLogin() {
-  if (CAND.status === "completed") return renderThanks(true);
-  try {
-    const snap = await getDoc(doc(db, "config", "testPublic"));
-    if (!snap.exists()) return renderMessage("La prueba aún no está configurada. Avísale al equipo de LOGYBOX.");
-    TEST = snap.data();
-  } catch (e) {
-    return renderMessage(niceError(e));
-  }
-  answers = {};
-  step = -1;
-  renderIntro();
-}
-
-/* -------------------------------- Login ---------------------------------- */
-function renderLogin() {
+/* --------------------------- Paso 1: correo ------------------------------ */
+function renderEmail(prefill = "") {
   app.innerHTML = "";
   const view = el(`
     <div class="center">
@@ -57,12 +32,13 @@ function renderLogin() {
         <div style="margin-bottom:26px">${logoSVG({ height: 40 })}</div>
         <p class="eyebrow">Prueba técnica</p>
         <h1 style="font-size:27px;margin:8px 0 6px">Bienvenido/a</h1>
-        <p class="muted" style="font-size:15px;margin-bottom:26px">Ingresa con el usuario y la contraseña que te entregó el equipo de LOGYBOX.</p>
+        <p class="muted" style="font-size:15px;margin-bottom:26px">Ingresa el correo con el que fuiste invitado/a por el equipo de LOGYBOX.</p>
         <div id="err"></div>
         <form id="f">
-          <div class="field"><label>Usuario</label><input name="username" autocomplete="username" autofocus required /></div>
-          <div class="field"><label>Contraseña</label><input name="password" type="password" autocomplete="current-password" required /></div>
-          <button class="btn btn-primary btn-block" type="submit">Entrar</button>
+          <div class="field"><label>Correo electrónico</label>
+            <input name="email" type="email" inputmode="email" autocomplete="email" autofocus required value="${esc(prefill)}" placeholder="tucorreo@ejemplo.com" />
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Continuar</button>
         </form>
         <p class="tiny muted" style="text-align:center;margin-top:20px">
           ¿Eres del equipo? <a href="admin.html" style="color:var(--orange);font-weight:600;text-decoration:none">Panel de administración</a>
@@ -72,18 +48,87 @@ function renderLogin() {
   view.querySelector("#f").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = view.querySelector("button[type=submit]");
-    btn.disabled = true; btn.textContent = "Entrando...";
-    const fd = new FormData(e.target);
+    const errBox = view.querySelector("#err");
+    errBox.innerHTML = "";
+    const email = new FormData(e.target).get("email");
+    if (!isValidEmail(email)) {
+      errBox.innerHTML = `<div class="alert alert-error">Escribe un correo válido.</div>`;
+      return;
+    }
+    btn.disabled = true; btn.textContent = "Verificando...";
     try {
-      const cred = await signInWithEmailAndPassword(auth, toEmail(fd.get("username")), fd.get("password"));
-      const ok = await loadCandidate(cred.user);
-      if (!ok) {
-        await signOut(auth);
-        throw { code: "invalid-credential" };
+      const key = emailKey(email);
+      const snap = await getDoc(doc(db, "candidates", key));
+      if (!snap.exists()) {
+        btn.disabled = false; btn.textContent = "Continuar";
+        errBox.innerHTML = `<div class="alert alert-error">Este correo no está habilitado para la prueba. Verifica que sea el mismo que te compartió LOGYBOX o escríbenos.</div>`;
+        return;
       }
-      afterLogin();
+      const data = snap.data();
+      if (data.status === "completed") return renderThanks(true);
+      CAND = { key, email: key, name: data.name || "" };
+      renderName();
     } catch (err) {
-      btn.disabled = false; btn.textContent = "Entrar";
+      btn.disabled = false; btn.textContent = "Continuar";
+      errBox.innerHTML = `<div class="alert alert-error">${esc(niceError(err))}</div>`;
+    }
+  });
+  app.appendChild(view);
+}
+
+/* ------------------- Paso 2: nombre + empezar prueba --------------------- */
+function renderName() {
+  app.innerHTML = "";
+  const view = el(`
+    <div class="center">
+      <div class="glass pad-lg appear" style="width:100%;max-width:640px">
+        <div style="margin-bottom:22px">${logoSVG({ height: 34 })}</div>
+        <p class="eyebrow">Prueba técnica · Asesor/a de Servicio al Cliente</p>
+        <h1 style="font-size:25px;margin:8px 0 8px">¡Casi listo/a!</h1>
+        <p class="muted" style="font-size:15px;line-height:1.6;margin-bottom:6px">
+          Correo verificado: <b style="color:var(--navy)">${esc(CAND.email)}</b>
+        </p>
+        <p class="muted" style="font-size:15px;line-height:1.6;margin-bottom:22px">Escribe tu nombre completo para identificar tu prueba. Antes de empezar, ten en cuenta:</p>
+        <div class="row wrap" style="gap:8px;margin-bottom:22px">
+          <span class="badge" style="background:rgba(255,128,0,.10);color:#c05c00">📝 40 preguntas</span>
+          <span class="badge" style="background:rgba(47,16,219,.08);color:var(--blue)">⏱️ 25–30 minutos</span>
+          <span class="badge" style="background:rgba(29,22,80,.07);color:var(--navy)">🔒 Un solo envío</span>
+        </div>
+        <div id="err"></div>
+        <form id="f">
+          <div class="field"><label>Nombre completo</label>
+            <input name="name" autocomplete="name" autofocus required value="${esc(CAND.name)}" placeholder="Ej: María Pérez" />
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Empezar prueba →</button>
+        </form>
+        <p class="tiny muted" style="text-align:center;margin-top:16px">Tus respuestas se guardan solo al final; completa la prueba de una sola vez.</p>
+      </div>
+    </div>`);
+  view.querySelector("#f").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = view.querySelector("button[type=submit]");
+    const name = String(new FormData(e.target).get("name") || "").trim();
+    if (name.length < 3) {
+      view.querySelector("#err").innerHTML = `<div class="alert alert-error">Escribe tu nombre completo.</div>`;
+      return;
+    }
+    CAND.name = name;
+    btn.disabled = true; btn.textContent = "Cargando...";
+    try {
+      // Guardar el nombre (deja constancia de que inició) y cargar la prueba.
+      await updateDoc(doc(db, "candidates", CAND.key), { name }).catch(() => {});
+      const snap = await getDoc(doc(db, "config", "testPublic"));
+      if (!snap.exists()) {
+        btn.disabled = false; btn.textContent = "Empezar prueba →";
+        view.querySelector("#err").innerHTML = `<div class="alert alert-error">La prueba aún no está publicada. Avísale al equipo de LOGYBOX.</div>`;
+        return;
+      }
+      TEST = snap.data();
+      answers = {};
+      step = 0;
+      renderStep();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = "Empezar prueba →";
       view.querySelector("#err").innerHTML = `<div class="alert alert-error">${esc(niceError(err))}</div>`;
     }
   });
@@ -103,35 +148,6 @@ function answeredCount() {
 function updateCount() {
   const c = document.getElementById("ansCount");
   if (c) c.textContent = answeredCount();
-}
-
-function renderIntro() {
-  app.innerHTML = "";
-  const comps = TEST.competencias
-    .map((c) => `<div class="glass" style="padding:14px 16px;display:flex;gap:11px;align-items:center">
-        <span style="font-size:22px">${c.icon || "•"}</span>
-        <span style="font-weight:500;font-size:14.5px">${esc(c.nombre)}</span>
-      </div>`).join("");
-  const view = el(`
-    <div class="center">
-      <div class="glass pad-lg appear" style="width:100%;max-width:720px">
-        <div style="margin-bottom:22px">${logoSVG({ height: 34 })}</div>
-        <p class="eyebrow">Prueba técnica</p>
-        <h1 style="font-size:28px;margin:8px 0 10px">${esc(TEST.titulo)}</h1>
-        <p class="muted" style="font-size:15px;line-height:1.6;margin-bottom:18px">${esc(TEST.descripcion)}</p>
-        <div class="row wrap" style="gap:8px;margin-bottom:24px">
-          <span class="badge" style="background:rgba(255,128,0,.10);color:#c05c00">📝 ${TEST.preguntas.length} preguntas</span>
-          <span class="badge" style="background:rgba(47,16,219,.08);color:var(--blue)">⏱️ 25–30 minutos</span>
-          <span class="badge" style="background:rgba(29,22,80,.07);color:var(--navy)">🔒 Un solo envío</span>
-        </div>
-        <p style="font-weight:600;font-size:13px;margin-bottom:12px">Vas a ser evaluado/a en:</p>
-        <div class="grid grid-2" style="margin-bottom:28px">${comps}</div>
-        <button class="btn btn-primary" id="start">Comenzar la prueba →</button>
-        <p class="tiny muted" style="margin-top:14px">Puedes moverte entre secciones con “Atrás” y “Siguiente”; tus respuestas se conservan hasta que envíes.</p>
-      </div>
-    </div>`);
-  view.querySelector("#start").addEventListener("click", () => { step = 0; renderStep(); });
-  app.appendChild(view);
 }
 
 function renderStep() {
@@ -263,14 +279,14 @@ function confirmSubmit() {
     btn.disabled = true; btn.textContent = "Enviando...";
     try {
       const now = new Date().toISOString();
-      await setDoc(doc(db, "submissions", CAND.uid), {
+      await setDoc(doc(db, "submissions", CAND.key), {
         answers,
         manualScores: {},
         candidateName: CAND.name || "",
-        candidateUser: CAND.username || "",
+        candidateEmail: CAND.email || "",
         submittedAt: now,
       });
-      await updateDoc(doc(db, "candidates", CAND.uid), { status: "completed", submittedAt: now });
+      await updateDoc(doc(db, "candidates", CAND.key), { status: "completed", name: CAND.name, submittedAt: now });
       modal.remove();
       renderThanks(false);
     } catch (err) {
@@ -291,16 +307,16 @@ function renderThanks(already) {
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 6.5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div style="margin-bottom:20px;display:flex;justify-content:center">${logoSVG({ height: 30 })}</div>
-        <h1 style="font-size:26px;margin-bottom:12px">${already ? "Tu prueba ya fue enviada" : "¡Gracias! Tu prueba fue enviada"}</h1>
+        <h1 style="font-size:26px;margin-bottom:12px">${already ? "Esta prueba ya fue enviada" : "¡Gracias! Tu prueba fue enviada"}</h1>
         <p class="muted" style="font-size:15.5px;line-height:1.6">
           ${already
-            ? "Ya registramos tus respuestas. El equipo de LOGYBOX revisará tus resultados."
+            ? "Con este correo ya registramos una prueba enviada. El equipo de LOGYBOX revisará los resultados."
             : "Recibimos tus respuestas correctamente. El equipo de LOGYBOX las revisará y se pondrá en contacto contigo. ¡Mucho éxito!"}
         </p>
-        <button class="btn btn-ghost mt-lg" id="out">Cerrar sesión</button>
+        <button class="btn btn-ghost mt-lg" id="out">Cerrar</button>
       </div>
     </div>`);
-  view.querySelector("#out").addEventListener("click", async () => { await signOut(auth); location.reload(); });
+  view.querySelector("#out").addEventListener("click", () => location.reload());
   app.appendChild(view);
 }
 
@@ -311,9 +327,9 @@ function renderMessage(text) {
       <div class="glass pad-lg appear" style="max-width:520px;width:100%;text-align:center">
         <div style="margin-bottom:20px;display:flex;justify-content:center">${logoSVG({ height: 30 })}</div>
         <p class="muted" style="font-size:15.5px;line-height:1.6">${esc(text)}</p>
-        <button class="btn btn-ghost mt-lg" id="out">Cerrar sesión</button>
+        <button class="btn btn-ghost mt-lg" id="out">Reintentar</button>
       </div>
     </div>`);
-  view.querySelector("#out").addEventListener("click", async () => { await signOut(auth); location.reload(); });
+  view.querySelector("#out").addEventListener("click", () => location.reload());
   app.appendChild(view);
 }

@@ -3,8 +3,8 @@ import { computeScores, maxForQuestion, sanitizeTest, getVerdict } from "./scori
 import { buildDefaultTest } from "./seed.js";
 import {
   configured, auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs,
-  signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
-  currentUser, isAdmin, toEmail, niceError,
+  signInWithEmailAndPassword, signOut,
+  currentUser, isAdmin, emailKey, isValidEmail, niceError,
 } from "./firebase.js";
 
 const app = document.getElementById("app");
@@ -15,7 +15,7 @@ async function init() {
   if (!configured) return renderNotConfigured(app);
   const user = await currentUser();
   if (user && (await isAdmin(user))) return renderShell();
-  if (user) await signOut(auth);
+  if (user) await signOut(auth); // sesión anónima o no-admin: fuera del panel
   renderLogin();
 }
 
@@ -30,8 +30,8 @@ function renderLogin() {
         <h1 style="font-size:26px;margin:8px 0 22px">Iniciar sesión</h1>
         <div id="err"></div>
         <form id="f">
-          <div class="field"><label>Usuario</label><input name="username" autofocus required /></div>
-          <div class="field"><label>Contraseña</label><input name="password" type="password" required /></div>
+          <div class="field"><label>Correo</label><input name="username" type="email" autocomplete="username" autofocus required /></div>
+          <div class="field"><label>Contraseña</label><input name="password" type="password" autocomplete="current-password" required /></div>
           <button class="btn btn-navy btn-block" type="submit">Entrar</button>
         </form>
         <p class="tiny muted" style="text-align:center;margin-top:20px">
@@ -45,7 +45,7 @@ function renderLogin() {
     btn.disabled = true; btn.textContent = "Entrando...";
     const fd = new FormData(e.target);
     try {
-      const cred = await signInWithEmailAndPassword(auth, toEmail(fd.get("username")), fd.get("password"));
+      const cred = await signInWithEmailAndPassword(auth, String(fd.get("username")).trim().toLowerCase(), fd.get("password"));
       if (!(await isAdmin(cred.user))) {
         await signOut(auth);
         throw { code: "permission" };
@@ -119,20 +119,6 @@ async function saveTest(test) {
   await setDoc(doc(db, "config", "testPublic"), sanitizeTest(test));
 }
 
-// Crea el usuario en Firebase Auth usando una app secundaria para
-// NO cerrar la sesion del admin actual.
-import { firebaseConfig } from "../firebase-config.js";
-import { initializeApp as initApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth as getAuth2, signOut as signOut2 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-async function createCandidateAuth(username, password) {
-  const name = "secondary";
-  const sec = getApps().find((a) => a.name === name) || initApp(firebaseConfig, name);
-  const secAuth = getAuth2(sec);
-  const cred = await createUserWithEmailAndPassword(secAuth, toEmail(username), password);
-  await signOut2(secAuth);
-  return cred.user.uid;
-}
-
 /* ------------------------------ Candidatos ------------------------------- */
 async function viewCandidates() {
   const c = content();
@@ -142,61 +128,61 @@ async function viewCandidates() {
   catch (e) { c.innerHTML = `<div class="alert alert-error">${esc(niceError(e))}</div>`; return; }
   c.innerHTML = "";
   const view = el(`
-    <div class="grid" style="grid-template-columns:minmax(0,1fr) 320px;align-items:start;gap:20px">
+    <div class="grid" style="grid-template-columns:minmax(0,1fr) 340px;align-items:start;gap:20px">
       <div class="glass pad appear">
         <div class="row between" style="margin-bottom:16px">
-          <h2 style="font-size:19px">Candidatos <span class="muted" style="font-weight:400">(${list.length})</span></h2>
+          <h2 style="font-size:19px">Correos habilitados <span class="muted" style="font-weight:400">(${list.length})</span></h2>
         </div>
         <div style="overflow-x:auto">
           <table>
-            <thead><tr><th>Nombre</th><th>Usuario</th><th>Estado</th><th class="hide-sm">Creado</th><th></th></tr></thead>
+            <thead><tr><th>Correo</th><th>Nombre</th><th>Estado</th><th class="hide-sm">Agregado</th><th></th></tr></thead>
             <tbody id="rows"></tbody>
           </table>
         </div>
-        ${list.length === 0 ? `<p class="muted" style="padding:24px 4px">Aún no has creado candidatos. Usa el formulario de la derecha →</p>` : ""}
+        ${list.length === 0 ? `<p class="muted" style="padding:24px 4px">Aún no has habilitado correos. Agrega uno con el formulario de la derecha →</p>` : ""}
       </div>
 
       <div class="glass pad appear">
-        <h2 style="font-size:18px;margin-bottom:4px">Nuevo candidato</h2>
-        <p class="tiny muted" style="margin-bottom:18px">Crea un usuario y contraseña para quien va a presentar la prueba (mínimo 6 caracteres).</p>
+        <h2 style="font-size:18px;margin-bottom:4px">Habilitar candidato</h2>
+        <p class="tiny muted" style="margin-bottom:18px">Agrega el correo de la persona. Podrá entrar al portal con ese correo (sin contraseña) y escribirá su nombre al empezar.</p>
         <div id="err"></div>
         <form id="f">
-          <div class="field"><label>Nombre completo</label><input name="name" required /></div>
-          <div class="field"><label>Usuario</label><input name="username" placeholder="ej: maria.perez" required /></div>
-          <div class="field"><label>Contraseña</label>
-            <div class="row" style="gap:8px">
-              <input name="password" minlength="6" required />
-              <button type="button" class="btn btn-ghost btn-sm" id="gen">Generar</button>
-            </div>
+          <div class="field"><label>Correo del candidato</label>
+            <input name="email" type="email" inputmode="email" placeholder="ej: maria.perez@gmail.com" required />
           </div>
-          <button class="btn btn-primary btn-block" type="submit">Crear candidato</button>
+          <button class="btn btn-primary btn-block" type="submit">Habilitar correo</button>
         </form>
+        <p class="tiny muted" style="margin-top:14px;line-height:1.6">Puedes pegar el correo tal cual te lo dio el candidato. Se guarda en minúsculas.</p>
       </div>
     </div>`);
 
   const rows = view.querySelector("#rows");
   list.forEach((cd) => rows.appendChild(candidateRow(cd)));
 
-  view.querySelector("#gen").addEventListener("click", () => {
-    view.querySelector('[name=password]').value = genPass();
-  });
   view.querySelector("#f").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = view.querySelector("button[type=submit]");
-    btn.disabled = true; btn.textContent = "Creando...";
-    const fd = new FormData(e.target);
-    const name = String(fd.get("name")).trim();
-    const username = String(fd.get("username")).toLowerCase().trim().replace(/\s+/g, ".");
-    const password = String(fd.get("password"));
+    const errBox = view.querySelector("#err");
+    errBox.innerHTML = "";
+    const email = String(new FormData(e.target).get("email") || "");
+    if (!isValidEmail(email)) {
+      errBox.innerHTML = `<div class="alert alert-error">Escribe un correo válido.</div>`;
+      return;
+    }
+    const key = emailKey(email);
+    if (list.some((c) => c.id === key)) {
+      errBox.innerHTML = `<div class="alert alert-error">Ese correo ya está habilitado.</div>`;
+      return;
+    }
+    btn.disabled = true; btn.textContent = "Habilitando...";
     try {
-      const uid = await createCandidateAuth(username, password);
-      await setDoc(doc(db, "candidates", uid), {
-        name, username, status: "pending", createdAt: new Date().toISOString(),
+      await setDoc(doc(db, "candidates", key), {
+        email: key, name: "", status: "pending", createdAt: new Date().toISOString(),
       });
       viewCandidates();
     } catch (err) {
-      btn.disabled = false; btn.textContent = "Crear candidato";
-      view.querySelector("#err").innerHTML = `<div class="alert alert-error">${esc(niceError(err))}</div>`;
+      btn.disabled = false; btn.textContent = "Habilitar correo";
+      errBox.innerHTML = `<div class="alert alert-error">${esc(niceError(err))}</div>`;
     }
   });
   c.appendChild(view);
@@ -207,8 +193,8 @@ function candidateRow(cd) {
     ? `<span class="badge badge-done">✓ Completó</span>`
     : `<span class="badge badge-pending">● Pendiente</span>`;
   const tr = el(`<tr>
-      <td style="font-weight:500">${esc(cd.name)}</td>
-      <td class="muted">${esc(cd.username)}</td>
+      <td style="font-weight:500">${esc(cd.email || cd.id)}</td>
+      <td class="muted">${esc(cd.name || "—")}</td>
       <td>${badge}</td>
       <td class="muted tiny hide-sm">${fmtDate(cd.createdAt)}</td>
       <td><div class="row" style="gap:6px;justify-content:flex-end">
@@ -216,7 +202,7 @@ function candidateRow(cd) {
       </div></td>
     </tr>`);
   tr.querySelector('[data-act=del]').addEventListener("click", async () => {
-    if (!confirm(`¿Eliminar a ${cd.name}? Se borrarán también sus resultados.\n\nNota: el usuario "${cd.username}" no podrá reutilizarse (crea uno nuevo, ej. ${cd.username}2).`)) return;
+    if (!confirm(`¿Quitar el correo ${cd.email || cd.id}? Se borrarán también sus resultados si presentó la prueba.`)) return;
     try {
       await deleteDoc(doc(db, "submissions", cd.id)).catch(() => {});
       await deleteDoc(doc(db, "candidates", cd.id));
@@ -224,10 +210,6 @@ function candidateRow(cd) {
     } catch (e) { alert(niceError(e)); }
   });
   return tr;
-}
-function genPass() {
-  const chars = "abcdefghijkmnpqrstuvwxyz23456789";
-  return "lb-" + Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
 /* ------------------------------- Resultados ------------------------------ */
@@ -270,7 +252,7 @@ async function viewResults() {
       `<span title="${esc(cp.nombre)}: ${cp.pct}%" style="display:inline-block;width:26px;height:8px;border-radius:4px;margin-right:3px;background:linear-gradient(90deg,${scoreColor(cp.pct)} ${cp.pct}%, rgba(29,22,80,.12) ${cp.pct}%)"></span>`
     ).join("");
     const tr = el(`<tr class="row-click">
-        <td style="font-weight:500">${esc(s.candidateName || "(sin nombre)")}<div class="tiny muted">${esc(s.candidateUser || "-")}</div></td>
+        <td style="font-weight:500">${esc(s.candidateName || "(sin nombre)")}<div class="tiny muted">${esc(s.candidateEmail || s.id)}</div></td>
         <td class="muted tiny">${fmtDate(s.submittedAt)}</td>
         <td>
           <div class="row between" style="margin-bottom:5px"><b style="color:${scoreColor(score.totalPct)}">${score.totalPct}%</b>
@@ -349,7 +331,7 @@ function openResult(s, TEST) {
       <div>
         <p class="eyebrow">Resultado</p>
         <h2 style="font-size:23px">${esc(s.candidateName || "(sin nombre)")}</h2>
-        <p class="tiny muted">${esc(s.candidateUser || "-")} · ${fmtDate(s.submittedAt)}</p>
+        <p class="tiny muted">${esc(s.candidateEmail || s.id)} · ${fmtDate(s.submittedAt)}</p>
       </div>
       <button class="btn btn-ghost btn-sm" id="close">Cerrar ✕</button>
     </div>
@@ -422,7 +404,7 @@ async function viewTestEditor() {
     const empty = el(`<div class="glass pad-lg appear" style="text-align:center;max-width:560px;margin:0 auto">
         <div style="margin-bottom:18px;display:flex;justify-content:center">${logoSVG({ height: 30 })}</div>
         <h2 style="font-size:20px;margin-bottom:8px">La prueba aún no está en Firebase</h2>
-        <p class="muted" style="margin-bottom:22px">Carga la prueba por defecto (38 preguntas, 6 competencias) y luego edítala a tu gusto.</p>
+        <p class="muted" style="margin-bottom:22px">Carga la prueba por defecto (40 preguntas, 6 competencias) y luego edítala a tu gusto.</p>
         <button class="btn btn-primary" id="seed">Cargar prueba por defecto</button>
       </div>`);
     empty.querySelector("#seed").addEventListener("click", async () => {

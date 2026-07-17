@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getAuth,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
+  signInAnonymously,
   signOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -19,10 +19,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "../firebase-config.js";
 
-// Dominio interno para convertir usuarios en emails de Firebase Auth.
-// "maria.perez" -> "maria.perez@logybox-pruebas.com" (no necesita existir).
-export const EMAIL_DOMAIN = "logybox-pruebas.com";
-
 export const configured =
   firebaseConfig &&
   firebaseConfig.apiKey &&
@@ -35,14 +31,18 @@ if (configured) {
   db = getFirestore(app);
 }
 
-export { app, auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut };
+export {
+  app, auth, db,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs,
+  signInWithEmailAndPassword, signInAnonymously, signOut,
+};
 
-export function toEmail(username) {
-  const u = String(username || "").toLowerCase().trim();
-  return u.includes("@") ? u : `${u}@${EMAIL_DOMAIN}`;
+// Normaliza un correo para usarlo como ID de documento (clave del candidato).
+export function emailKey(email) {
+  return String(email || "").trim().toLowerCase();
 }
-export function toUsername(email) {
-  return String(email || "").split("@")[0];
+export function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
 // Espera a que Firebase resuelva la sesion actual (o null).
@@ -68,15 +68,13 @@ export function niceError(err) {
   const code = err?.code || "";
   if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found"))
     return "Usuario o contraseña incorrectos";
+  if (code.includes("operation-not-allowed") || code.includes("admin-restricted-operation"))
+    return "El acceso anónimo no está habilitado en Firebase (Authentication → Sign-in method → Anónimo).";
   if (code.includes("too-many-requests"))
     return "Demasiados intentos. Espera unos minutos e intenta de nuevo.";
-  if (code.includes("email-already-in-use"))
-    return "Ese usuario ya existe";
-  if (code.includes("weak-password"))
-    return "La contraseña debe tener al menos 6 caracteres";
   if (code.includes("network-request-failed"))
     return "Sin conexión. Revisa tu internet.";
   if (code.includes("permission") || code.includes("insufficient"))
-    return "No tienes permisos para esta acción (revisa las reglas de Firestore y la colección admins).";
+    return "No tienes permisos para esta acción (revisa las reglas de Firestore).";
   return err?.message || "Error inesperado";
 }

@@ -554,6 +554,17 @@ function openInterview(cand, sub, prueba, prevDoc, editingName = null) {
     const comb = combinar(allEvals);
     const isc = interviewScore({ ratings: comb.ratings });
     const sg = sugerencia(isc.pct);
+    const secTitle = {};
+    GUIA.forEach((s) => (secTitle[s.id] = s.n + ". " + s.titulo));
+    const notasResumen = (ev) => {
+      const ns = ev.notes || {};
+      const keys = Object.keys(ns).filter((k) => ns[k] && String(ns[k]).trim());
+      if (!keys.length) return "";
+      return `<div style="margin-top:8px;background:rgba(29,22,80,.04);border-radius:8px;padding:8px 11px">
+          <p class="tiny" style="font-weight:600;color:var(--muted);margin-bottom:5px">📝 Notas</p>
+          ${keys.map((k) => `<p class="tiny" style="line-height:1.55;margin-bottom:5px"><b>${esc(secTitle[k] || k)}:</b> ${esc(ns[k])}</p>`).join("")}
+        </div>`;
+    };
     const porEval = comb.evaluadores.map((ev) => {
       const es = interviewScore({ ratings: ev.ratings || {} });
       const vd = VEREDICTOS.find((v) => v.id === ev.verdict);
@@ -562,7 +573,8 @@ function openInterview(cand, sub, prueba, prevDoc, editingName = null) {
             <span style="font-weight:700;color:${es.pct == null ? "var(--muted)" : scoreColor(es.pct)}">${es.pct == null ? "—" : es.pct + "%"}</span></div>
           ${vd ? `<div class="tiny" style="color:${vd.color};font-weight:600;margin-top:2px">${vd.icono} ${esc(vd.label)}</div>` : ""}
           ${ev.finalNotes ? `<p class="tiny muted" style="margin-top:6px;line-height:1.5;white-space:pre-wrap">“${esc(ev.finalNotes)}”</p>` : ""}
-          <button type="button" class="btn btn-ghost btn-sm edit-eval" data-name="${esc(ev.interviewer || "")}" style="margin-top:8px">✏️ Editar esta evaluación</button>
+          ${notasResumen(ev)}
+          <button type="button" class="btn btn-ghost btn-sm edit-eval" data-name="${esc(ev.interviewer || "")}" style="margin-top:8px">✏️ Editar / completar esta evaluación</button>
         </div>`;
     }).join("");
     return `

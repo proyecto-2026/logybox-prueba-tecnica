@@ -46,6 +46,11 @@ service cloud.firestore {
                  .hasOnly(['name', 'status', 'submittedAt']));
     }
 
+    // Notas y calificacion de las entrevistas: SOLO el admin (informacion sensible).
+    match /interviews/{emailKey} {
+      allow read, write: if isAdmin();
+    }
+
     // Respuestas enviadas. El candidato crea la suya UNA sola vez (create falla
     // si ya existe) y solo si su correo esta habilitado y no ha completado.
     match /submissions/{emailKey} {

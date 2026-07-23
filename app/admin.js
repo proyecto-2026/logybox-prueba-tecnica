@@ -1,7 +1,7 @@
 import { logoSVG, el, esc, fmtDate, scoreColor, renderNotConfigured } from "./common.js";
 import { computeScores, maxForQuestion, sanitizeTest, getVerdict } from "./scoring.js";
 import { buildDefaultTest } from "./seed.js";
-import { GUIA, BLOQUES, TODAS_DIMENSIONES, MINUTOS_TOTAL, interviewScore, sugerencia, VEREDICTOS } from "./interview.js";
+import { GUIA, BLOQUES, TODAS_DIMENSIONES, MINUTOS_TOTAL, interviewScore, sugerencia, VEREDICTOS, diagnostico, nivelDim } from "./interview.js";
 import {
   configured, auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs,
   signInWithEmailAndPassword, signOut,
@@ -454,9 +454,14 @@ async function viewInterviews() {
     let entCell = `<span class="badge badge-pending">○ Sin iniciar</span>`;
     if (ent) {
       const vd = VEREDICTOS.find((v) => v.id === ent.verdict);
+      const dg = diagnostico(ent.ratings || {});
       entCell = `<b style="color:${isc.pct == null ? "var(--muted)" : scoreColor(isc.pct)}">${isc.pct == null ? "—" : isc.pct + "%"}</b>
         <div class="tiny muted">${isc.evaluadas}/${isc.totalDims} calificados</div>
-        ${vd ? `<div class="tiny" style="color:${vd.color};font-weight:600">${vd.icono} ${esc(vd.label)}</div>` : ""}`;
+        ${vd ? `<div class="tiny" style="color:${vd.color};font-weight:600">${vd.icono} ${esc(vd.label)}</div>` : ""}
+        <div class="tiny" style="margin-top:3px">
+          ${dg.alertas.length ? `<span style="color:#c62a20">🔴 ${dg.alertas.length} débil${dg.alertas.length > 1 ? "es" : ""}</span> ` : ""}
+          ${dg.reforzar.length ? `<span style="color:#c05c00">⚠️ ${dg.reforzar.length} a reforzar</span>` : ""}
+        </div>`;
     }
     const tr = el(`<tr>
         <td style="font-weight:500">${esc(cd.name || "(sin nombre aún)")}<div class="tiny muted">${esc(cd.email || cd.id)}</div></td>
@@ -470,6 +475,48 @@ async function viewInterviews() {
     tb.appendChild(tr);
   });
   c.appendChild(view);
+}
+
+// Lectura automatica: que salio bien, que quedo regular (y como reforzarlo) y las alertas.
+function lecturaHTML(ratings) {
+  const d = diagnostico(ratings);
+  if (!d.fortalezas.length && !d.reforzar.length && !d.alertas.length) {
+    return `<p class="tiny muted" style="margin-top:16px">Califica los aspectos de cada sección y aquí aparecerá la lectura del perfil: qué salió bien, qué quedó regular y qué reforzar.</p>`;
+  }
+  const lista = (items, conRefuerzo) => items.map((it) => `
+    <div style="padding:9px 0;border-top:1px solid var(--line)">
+      <div class="row between" style="gap:10px;align-items:baseline">
+        <span style="font-size:13.5px;font-weight:500">${esc(it.label)}</span>
+        <span class="tiny" style="color:${it.nivel.color};font-weight:600;flex:none">${it.nivel.icono} ${it.nivel.txt} · ${it.valor}/5</span>
+      </div>
+      ${conRefuerzo && it.refuerzo ? `<p class="tiny muted" style="margin-top:3px;line-height:1.55">→ ${esc(it.refuerzo)}</p>` : ""}
+    </div>`).join("");
+
+  return `
+    <div style="margin-top:20px">
+      <h4 style="font-size:15px;font-weight:700;margin-bottom:4px">Lectura de la entrevista</h4>
+      <p class="tiny muted" style="margin-bottom:12px">Se arma sola con tus calificaciones.</p>
+
+      ${d.alertas.length ? `
+        <div class="glass" style="padding:13px 16px;background:rgba(198,42,32,.06);border-left:3px solid #c62a20;margin-bottom:10px">
+          <p style="font-size:13.5px;font-weight:700;color:#c62a20">🔴 Puntos débiles (${d.alertas.length}) — riesgo para el cargo</p>
+          ${lista(d.alertas, true)}
+        </div>` : ""}
+
+      ${d.reforzar.length ? `
+        <div class="glass" style="padding:13px 16px;background:rgba(255,128,0,.07);border-left:3px solid var(--orange);margin-bottom:10px">
+          <p style="font-size:13.5px;font-weight:700;color:#c05c00">⚠️ Estuvo regular (${d.reforzar.length}) — se puede reforzar</p>
+          ${lista(d.reforzar, true)}
+        </div>` : ""}
+
+      ${d.fortalezas.length ? `
+        <div class="glass" style="padding:13px 16px;background:rgba(28,122,58,.06);border-left:3px solid #1c7a3a;margin-bottom:10px">
+          <p style="font-size:13.5px;font-weight:700;color:#1c7a3a">✅ Fortalezas (${d.fortalezas.length})</p>
+          ${lista(d.fortalezas, false)}
+        </div>` : ""}
+
+      ${d.sinCalificar.length ? `<p class="tiny muted">Faltan por calificar ${d.sinCalificar.length} aspectos: ${d.sinCalificar.map((x) => esc(x.label)).join(" · ")}</p>` : ""}
+    </div>`;
 }
 
 function ratingWidget(dim, value) {
@@ -683,7 +730,8 @@ function openInterview(cand, sub, prueba, prev) {
             <div class="meter"><i style="width:${b.pct || 0}%"></i></div>
             <p class="tiny muted" style="margin-top:5px">${b.evaluadas}/${b.total} calificados</p>
           </div>`).join("")}
-      </div>`;
+      </div>
+      ${lecturaHTML(state.ratings)}`;
   }
   paintAnalisis();
 

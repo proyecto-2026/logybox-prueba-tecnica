@@ -42,11 +42,11 @@ export const GUIA = [
       "Coherencia entre lo que dice y los ejemplos que comparte.",
     ],
     dimensiones: [
-      { id: "honestidad", label: "Honestidad y naturalidad" },
-      { id: "responsabilidad", label: "Responsabilidad frente a errores" },
-      { id: "relacionamiento", label: "Forma de relacionarse con otros" },
-      { id: "madurez", label: "Madurez y estabilidad emocional" },
-      { id: "coherencia", label: "Coherencia entre lo que dice y sus ejemplos" },
+      { id: "honestidad", label: "Honestidad y naturalidad", refuerzo: "Validar con referencias laborales antes de contratar." },
+      { id: "responsabilidad", label: "Responsabilidad frente a errores", refuerzo: "Hacer seguimiento cercano de sus casos el primer mes." },
+      { id: "relacionamiento", label: "Forma de relacionarse con otros", refuerzo: "Acompañar su integración al equipo y observar en periodo de prueba." },
+      { id: "madurez", label: "Madurez y estabilidad emocional", refuerzo: "Evaluar su reacción bajo presión durante el periodo de prueba." },
+      { id: "coherencia", label: "Coherencia entre lo que dice y sus ejemplos", refuerzo: "Contrastar con referencias y pedir ejemplos concretos verificables." },
     ],
   },
   {
@@ -68,9 +68,9 @@ export const GUIA = [
       porque: "Permite descubrir qué espera del cargo, qué entiende por crecimiento y qué podría influir en su permanencia.",
     },
     dimensiones: [
-      { id: "proyeccion", label: "Claridad en su proyección" },
-      { id: "permanencia", label: "Probabilidad de permanencia" },
-      { id: "motivacion", label: "Motivación genuina por el cargo" },
+      { id: "proyeccion", label: "Claridad en su proyección", refuerzo: "Definir con la persona un plan de crecimiento a 6 meses." },
+      { id: "permanencia", label: "Probabilidad de permanencia", refuerzo: "Riesgo de rotación: aclarar expectativas y plan de carrera desde el inicio." },
+      { id: "motivacion", label: "Motivación genuina por el cargo", refuerzo: "Reforzar el propósito del cargo durante la inducción." },
     ],
   },
   {
@@ -96,10 +96,10 @@ export const GUIA = [
       ],
     },
     dimensiones: [
-      { id: "servicio", label: "Entendimiento del buen servicio" },
-      { id: "manejoDificil", label: "Manejo de clientes molestos" },
-      { id: "organizacion", label: "Organización de varios casos" },
-      { id: "casoPractico", label: "Calidad de respuesta al caso práctico" },
+      { id: "servicio", label: "Entendimiento del buen servicio", refuerzo: "Reforzar con capacitación en el protocolo de atención de LogyBox." },
+      { id: "manejoDificil", label: "Manejo de clientes molestos", refuerzo: "Acompañarlo/a en casos difíciles las primeras semanas." },
+      { id: "organizacion", label: "Organización de varios casos", refuerzo: "Enseñar método de priorización y manejo de la bandeja de casos." },
+      { id: "casoPractico", label: "Calidad de respuesta al caso práctico", refuerzo: "Reforzar con simulaciones de casos reales en la inducción." },
     ],
   },
   {
@@ -116,9 +116,9 @@ export const GUIA = [
     ],
     nota: "No es indispensable que conozca todas las plataformas. Lo importante es identificar su disposición, autonomía y velocidad para aprender.",
     dimensiones: [
-      { id: "herramientas", label: "Nivel actual de herramientas" },
-      { id: "aprendizaje", label: "Autonomía y velocidad para aprender" },
-      { id: "ordenInfo", label: "Orden con la información" },
+      { id: "herramientas", label: "Nivel actual de herramientas", refuerzo: "Plan de capacitación en Excel y las plataformas del cargo." },
+      { id: "aprendizaje", label: "Autonomía y velocidad para aprender", refuerzo: "Entregar material guiado y hacer checkpoints de aprendizaje." },
+      { id: "ordenInfo", label: "Orden con la información", refuerzo: "Reforzar con plantillas y formatos de registro estandarizados." },
     ],
   },
   {
@@ -142,7 +142,7 @@ export const GUIA = [
       { id: "equipos", label: "Equipos y conexión", placeholder: "Ej: computador propio + buena conexión" },
     ],
     dimensiones: [
-      { id: "disponibilidad", label: "Ajuste de disponibilidad al cargo" },
+      { id: "disponibilidad", label: "Ajuste de disponibilidad al cargo", refuerzo: "Confirmar por escrito horario y compromiso en temporadas altas." },
     ],
   },
   {
@@ -157,7 +157,7 @@ export const GUIA = [
       "¿Por qué consideras que podrías construir un proceso estable con LogyBox?",
     ],
     dimensiones: [
-      { id: "interes", label: "Interés y entusiasmo real" },
+      { id: "interes", label: "Interés y entusiasmo real", refuerzo: "Resolver sus dudas pendientes antes de hacerle la oferta." },
     ],
   },
 ];
@@ -192,6 +192,39 @@ export function interviewScore(data) {
     evaluadas: todas.length,
     totalDims: TODAS_DIMENSIONES.length,
     completa: todas.length === TODAS_DIMENSIONES.length,
+  };
+}
+
+// Nivel de cada aspecto calificado (1-5)
+export function nivelDim(v) {
+  const n = Number(v);
+  if (n === 5) return { txt: "Excelente", grupo: "fortaleza", color: "#1c7a3a", icono: "★" };
+  if (n === 4) return { txt: "Bueno",     grupo: "fortaleza", color: "#1c7a3a", icono: "✓" };
+  if (n === 3) return { txt: "Regular",   grupo: "reforzar",  color: "#c05c00", icono: "⚠️" };
+  if (n === 2) return { txt: "Débil",     grupo: "alerta",    color: "#c62a20", icono: "▼" };
+  if (n === 1) return { txt: "Muy débil", grupo: "alerta",    color: "#c62a20", icono: "▼" };
+  return null;
+}
+
+// Lectura automatica de la entrevista: que salio bien, que es regular
+// (y como reforzarlo) y que enciende alertas.
+export function diagnostico(ratings = {}) {
+  const fortalezas = [], reforzar = [], alertas = [], sinCalificar = [];
+  for (const d of TODAS_DIMENSIONES) {
+    const v = Number(ratings[d.id]);
+    const nivel = nivelDim(v);
+    if (!nivel) { sinCalificar.push(d); continue; }
+    const item = { ...d, valor: v, nivel };
+    if (nivel.grupo === "fortaleza") fortalezas.push(item);
+    else if (nivel.grupo === "reforzar") reforzar.push(item);
+    else alertas.push(item);
+  }
+  const orden = (a, b) => a.valor - b.valor;
+  return {
+    fortalezas: fortalezas.sort((a, b) => b.valor - a.valor),
+    reforzar: reforzar.sort(orden),
+    alertas: alertas.sort(orden),
+    sinCalificar,
   };
 }
 

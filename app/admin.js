@@ -1,7 +1,7 @@
 import { logoSVG, el, esc, fmtDate, scoreColor, renderNotConfigured } from "./common.js";
 import { computeScores, maxForQuestion, sanitizeTest, getVerdict } from "./scoring.js";
 import { buildDefaultTest } from "./seed.js";
-import { GUIA, BLOQUES, TODAS_DIMENSIONES, MINUTOS_TOTAL, interviewScore, sugerencia, VEREDICTOS, diagnostico, nivelDim } from "./interview.js";
+import { GUIA, BLOQUES, TODAS_DIMENSIONES, MINUTOS_TOTAL, interviewScore, sugerencia, VEREDICTOS, diagnostico, nivelDim, keyEvaluador, evalsFrom, combinar } from "./interview.js";
 import {
   configured, auth, db, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs,
   signInWithEmailAndPassword, signOut,
@@ -450,14 +450,17 @@ async function viewInterviews() {
         <div class="tiny" style="color:${vd.color}">${vd.icono} ${esc(vd.nivel.replace("Perfil ", ""))}</div>`;
     }
     const ent = entrevistas[cd.id];
-    const isc = ent ? interviewScore(ent) : null;
+    const evals = evalsFrom(ent);
+    const nEval = Object.keys(evals).length;
     let entCell = `<span class="badge badge-pending">○ Sin iniciar</span>`;
-    if (ent) {
-      const vd = VEREDICTOS.find((v) => v.id === ent.verdict);
-      const dg = diagnostico(ent.ratings || {});
+    if (nEval > 0) {
+      const comb = combinar(evals);
+      const isc = interviewScore({ ratings: comb.ratings });
+      const dg = diagnostico(comb.ratings);
+      const nombres = comb.evaluadores.map((e) => esc(e.interviewer || "—")).join(", ");
       entCell = `<b style="color:${isc.pct == null ? "var(--muted)" : scoreColor(isc.pct)}">${isc.pct == null ? "—" : isc.pct + "%"}</b>
-        <div class="tiny muted">${isc.evaluadas}/${isc.totalDims} calificados</div>
-        ${vd ? `<div class="tiny" style="color:${vd.color};font-weight:600">${vd.icono} ${esc(vd.label)}</div>` : ""}
+        <span class="tiny muted"> consolidado</span>
+        <div class="tiny muted">👥 ${nEval} evaluador${nEval > 1 ? "es" : ""}: ${nombres}</div>
         <div class="tiny" style="margin-top:3px">
           ${dg.alertas.length ? `<span style="color:#c62a20">🔴 ${dg.alertas.length} débil${dg.alertas.length > 1 ? "es" : ""}</span> ` : ""}
           ${dg.reforzar.length ? `<span style="color:#c05c00">⚠️ ${dg.reforzar.length} a reforzar</span>` : ""}
@@ -467,7 +470,7 @@ async function viewInterviews() {
         <td style="font-weight:500">${esc(cd.name || "(sin nombre aún)")}<div class="tiny muted">${esc(cd.email || cd.id)}</div></td>
         <td>${pruebaCell}</td>
         <td>${entCell}</td>
-        <td><button class="btn ${ent ? "btn-ghost" : "btn-primary"} btn-sm">${ent ? "Continuar →" : "Iniciar entrevista"}</button></td>
+        <td><button class="btn ${nEval ? "btn-ghost" : "btn-primary"} btn-sm">${nEval ? "Ver / evaluar →" : "Iniciar entrevista"}</button></td>
       </tr>`);
     tr.querySelector("button").addEventListener("click", () =>
       openInterview(cd, sub, prueba, entrevistas[cd.id] || null)
@@ -487,7 +490,7 @@ function lecturaHTML(ratings) {
     <div style="padding:9px 0;border-top:1px solid var(--line)">
       <div class="row between" style="gap:10px;align-items:baseline">
         <span style="font-size:13.5px;font-weight:500">${esc(it.label)}</span>
-        <span class="tiny" style="color:${it.nivel.color};font-weight:600;flex:none">${it.nivel.icono} ${it.nivel.txt} · ${it.valor}/5</span>
+        <span class="tiny" style="color:${it.nivel.color};font-weight:600;flex:none">${it.nivel.icono} ${it.nivel.txt} · ${Number(it.valor).toFixed(1).replace(".0", "")}/5</span>
       </div>
       ${conRefuerzo && it.refuerzo ? `<p class="tiny muted" style="margin-top:3px;line-height:1.55">→ ${esc(it.refuerzo)}</p>` : ""}
     </div>`).join("");
@@ -533,13 +536,44 @@ function ratingWidget(dim, value) {
     </div>`;
 }
 
-function openInterview(cand, sub, prueba, prev) {
-  const data = prev || {};
+function openInterview(cand, sub, prueba, prevDoc, editingName = null) {
   const key = cand.id;
+  const allEvals = evalsFrom(prevDoc);
+  const editingKey = editingName ? keyEvaluador(editingName) : null;
+  const data = (editingKey && allEvals[editingKey]) ? allEvals[editingKey] : {};
 
   const overlay = el(`<div style="position:fixed;inset:0;z-index:60;background:rgba(29,22,80,.45);backdrop-filter:blur(6px);overflow:auto;padding:24px 14px">
       <div class="glass pad-lg appear" style="max-width:860px;margin:0 auto"></div></div>`);
   const box = overlay.querySelector(".glass");
+
+  // --- Consolidado de las evaluaciones ya guardadas ---
+  function consolidadoHTML() {
+    if (!Object.keys(allEvals).length) {
+      return `<p class="tiny muted">Aún no hay evaluaciones guardadas. Escribe tu nombre abajo, califica y guarda. Cuando otra persona guarde la suya, aquí verás el consolidado (promedio) de ambos.</p>`;
+    }
+    const comb = combinar(allEvals);
+    const isc = interviewScore({ ratings: comb.ratings });
+    const sg = sugerencia(isc.pct);
+    const porEval = comb.evaluadores.map((ev) => {
+      const es = interviewScore({ ratings: ev.ratings || {} });
+      const vd = VEREDICTOS.find((v) => v.id === ev.verdict);
+      return `<div class="glass" style="padding:12px 14px;background:rgba(255,255,255,.55)">
+          <div class="row between"><b style="font-size:14px">${esc(ev.interviewer || "—")}</b>
+            <span style="font-weight:700;color:${es.pct == null ? "var(--muted)" : scoreColor(es.pct)}">${es.pct == null ? "—" : es.pct + "%"}</span></div>
+          ${vd ? `<div class="tiny" style="color:${vd.color};font-weight:600;margin-top:2px">${vd.icono} ${esc(vd.label)}</div>` : ""}
+          ${ev.finalNotes ? `<p class="tiny muted" style="margin-top:6px;line-height:1.5;white-space:pre-wrap">“${esc(ev.finalNotes)}”</p>` : ""}
+          <button type="button" class="btn btn-ghost btn-sm edit-eval" data-name="${esc(ev.interviewer || "")}" style="margin-top:8px">✏️ Editar esta evaluación</button>
+        </div>`;
+    }).join("");
+    return `
+      <div class="row between wrap" style="gap:12px;align-items:center;margin-bottom:12px">
+        <div><p class="tiny muted">Consolidado · promedio de ${comb.count} evaluador${comb.count > 1 ? "es" : ""}</p>
+          <p style="font-size:30px;font-weight:700;line-height:1;color:${isc.pct == null ? "var(--muted)" : scoreColor(isc.pct)}">${isc.pct == null ? "—" : isc.pct + "%"}</p></div>
+        <p style="font-weight:600;color:${sg.color}">${sg.icono} Sugerencia: ${sg.texto}</p>
+      </div>
+      <div class="grid grid-2" style="gap:10px;margin-bottom:14px">${porEval}</div>
+      ${lecturaHTML(comb.ratings)}`;
+  }
 
   // --- Resumen de su prueba técnica (para saber qué profundizar) ---
   let pruebaBox = `<div class="glass" style="padding:14px 16px;background:rgba(255,255,255,.5);margin-bottom:18px">
@@ -645,17 +679,27 @@ function openInterview(cand, sub, prueba, prev) {
 
     ${pruebaBox}
 
-    <div class="row wrap" style="gap:8px;margin-bottom:18px">
-      <div class="field" style="flex:1;min-width:200px;margin:0"><label class="tiny">Entrevistador/a</label>
-        <input id="entrevistador" value="${esc(data.interviewer || "")}" placeholder="Tu nombre" /></div>
-      <div class="field" style="flex:1;min-width:160px;margin:0"><label class="tiny">Fecha</label>
-        <input id="fecha" type="date" value="${esc(data.date || new Date().toISOString().slice(0, 10))}" /></div>
+    <div class="glass" style="padding:18px 20px;background:rgba(255,255,255,.5);margin-bottom:18px">
+      <h3 style="font-size:16px;margin-bottom:10px">👥 Evaluaciones del equipo</h3>
+      <div id="consolidado">${consolidadoHTML()}</div>
+    </div>
+
+    <div class="glass" style="padding:16px 18px;background:linear-gradient(135deg,rgba(255,128,0,.06),rgba(47,16,219,.05));margin-bottom:18px">
+      <p style="font-weight:600;font-size:14.5px;margin-bottom:2px">${editingKey && allEvals[editingKey] ? "Editando la evaluación de " + esc(data.interviewer) : "Tu evaluación"}</p>
+      <p class="tiny muted" style="margin-bottom:12px">Escribe tu nombre. Si ya evaluaste, usa el mismo nombre para editar tu evaluación; si eres otra persona, se guarda aparte y se promedia con las demás.</p>
+      <div class="row wrap" style="gap:8px">
+        <div class="field" style="flex:1;min-width:200px;margin:0"><label class="tiny">Entrevistador/a</label>
+          <input id="entrevistador" value="${esc(data.interviewer || editingName || "")}" placeholder="Ej: Mauricio" /></div>
+        <div class="field" style="flex:1;min-width:160px;margin:0"><label class="tiny">Fecha</label>
+          <input id="fecha" type="date" value="${esc(data.date || new Date().toISOString().slice(0, 10))}" /></div>
+      </div>
     </div>
 
     ${secciones}
 
     <div class="glass" style="padding:20px 22px;background:linear-gradient(135deg,rgba(255,128,0,.08),rgba(47,16,219,.06));margin-top:20px">
-      <h3 style="font-size:17px;margin-bottom:12px">Análisis del perfil</h3>
+      <h3 style="font-size:17px;margin-bottom:4px">Tu evaluación (en vivo)</h3>
+      <p class="tiny muted" style="margin-bottom:12px">Se calcula solo con tus calificaciones de arriba.</p>
       <div id="analisis"></div>
       <div class="field" style="margin-top:16px;margin-bottom:12px"><label class="tiny">Conclusión / observaciones finales</label>
         <textarea id="finalNotes" style="min-height:90px" placeholder="Resumen de la entrevista, fortalezas, alertas...">${esc(data.finalNotes || "")}</textarea></div>
@@ -667,9 +711,14 @@ function openInterview(cand, sub, prueba, prev) {
       <span class="tiny muted" id="savemsg"></span>
       <div class="row" style="gap:8px">
         <button class="btn btn-ghost btn-sm" id="print">Imprimir</button>
-        <button class="btn btn-primary" id="save">Guardar entrevista</button>
+        <button class="btn btn-primary" id="save">Guardar mi evaluación</button>
       </div>
     </div>`;
+
+  // editar la evaluación de otro entrevistador
+  box.querySelectorAll(".edit-eval").forEach((b) =>
+    b.addEventListener("click", () => { clearInterval(timer); overlay.remove(); openInterview(cand, sub, prueba, prevDoc, b.dataset.name); })
+  );
 
   /* ---- interacciones ---- */
   const state = {
@@ -753,6 +802,12 @@ function openInterview(cand, sub, prueba, prev) {
 
   box.querySelector("#save").addEventListener("click", async () => {
     const btn = box.querySelector("#save");
+    const nombre = box.querySelector("#entrevistador").value.trim();
+    if (!nombre) {
+      box.querySelector("#savemsg").innerHTML = `<span style="color:#c62a20">Escribe tu nombre como entrevistador/a antes de guardar.</span>`;
+      box.querySelector("#entrevistador").focus();
+      return;
+    }
     btn.disabled = true; btn.textContent = "Guardando...";
     const notes = {};
     box.querySelectorAll(".nota-sec").forEach((t) => { if (t.value.trim()) notes[t.dataset.sec] = t.value; });
@@ -763,10 +818,9 @@ function openInterview(cand, sub, prueba, prev) {
     const ratings = {};
     Object.entries(state.ratings).forEach(([k, v]) => { if (v) ratings[k] = v; });
 
-    const payload = {
-      candidateEmail: cand.email || cand.id,
-      candidateName: cand.name || "",
-      interviewer: box.querySelector("#entrevistador").value || "",
+    const evKey = keyEvaluador(nombre);
+    const evaluacion = {
+      interviewer: nombre,
       date: box.querySelector("#fecha").value || "",
       notes, ratings, condiciones,
       caso: { checks },
@@ -775,11 +829,17 @@ function openInterview(cand, sub, prueba, prev) {
       updatedAt: new Date().toISOString(),
     };
     try {
-      await setDoc(doc(db, "interviews", key), payload);
+      // merge:true agrega/actualiza SOLO esta evaluación sin tocar las de otros.
+      await setDoc(doc(db, "interviews", key), {
+        candidateEmail: cand.email || cand.id,
+        candidateName: cand.name || "",
+        evaluaciones: { [evKey]: evaluacion },
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
       cerrar();
       viewInterviews();
     } catch (err) {
-      btn.disabled = false; btn.textContent = "Guardar entrevista";
+      btn.disabled = false; btn.textContent = "Guardar mi evaluación";
       box.querySelector("#savemsg").innerHTML = `<span style="color:#c62a20">${esc(niceError(err))}</span>`;
     }
   });

@@ -197,15 +197,56 @@ export function interviewScore(data) {
   };
 }
 
-// Nivel de cada aspecto calificado (1-5)
+// Nivel de cada aspecto calificado (1-5). Usa rangos para admitir promedios
+// entre varios entrevistadores (ej. 3.5).
 export function nivelDim(v) {
   const n = Number(v);
-  if (n === 5) return { txt: "Excelente", grupo: "fortaleza", color: "#1c7a3a", icono: "★" };
-  if (n === 4) return { txt: "Bueno",     grupo: "fortaleza", color: "#1c7a3a", icono: "✓" };
-  if (n === 3) return { txt: "Regular",   grupo: "reforzar",  color: "#c05c00", icono: "⚠️" };
-  if (n === 2) return { txt: "Débil",     grupo: "alerta",    color: "#c62a20", icono: "▼" };
-  if (n === 1) return { txt: "Muy débil", grupo: "alerta",    color: "#c62a20", icono: "▼" };
-  return null;
+  if (!(n >= 1)) return null;
+  if (n >= 4.5) return { txt: "Excelente", grupo: "fortaleza", color: "#1c7a3a", icono: "★" };
+  if (n >= 3.5) return { txt: "Bueno",     grupo: "fortaleza", color: "#1c7a3a", icono: "✓" };
+  if (n >= 2.5) return { txt: "Regular",   grupo: "reforzar",  color: "#c05c00", icono: "⚠️" };
+  if (n >= 1.5) return { txt: "Débil",     grupo: "alerta",    color: "#c62a20", icono: "▼" };
+  return { txt: "Muy débil", grupo: "alerta", color: "#c62a20", icono: "▼" };
+}
+
+// Clave de un entrevistador a partir de su nombre.
+export function keyEvaluador(nombre) {
+  return (
+    String(nombre || "").trim().toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "evaluador"
+  );
+}
+
+// Devuelve las evaluaciones como mapa {clave: evaluacion}, migrando el
+// formato antiguo (una sola evaluación plana) si es necesario.
+export function evalsFrom(data) {
+  if (data?.evaluaciones && Object.keys(data.evaluaciones).length) return data.evaluaciones;
+  if (data && (data.ratings || data.notes || data.verdict || data.finalNotes)) {
+    const nombre = data.interviewer || "Evaluador 1";
+    return {
+      [keyEvaluador(nombre)]: {
+        interviewer: nombre, date: data.date || "",
+        ratings: data.ratings || {}, notes: data.notes || {},
+        caso: data.caso || { checks: {} }, condiciones: data.condiciones || {},
+        finalNotes: data.finalNotes || "", verdict: data.verdict || null,
+        updatedAt: data.updatedAt || "",
+      },
+    };
+  }
+  return {};
+}
+
+// Combina varias evaluaciones: promedia cada aspecto entre los entrevistadores
+// que lo calificaron. Devuelve un mapa de ratings listo para interviewScore/diagnostico.
+export function combinar(evaluaciones) {
+  const evals = Object.values(evaluaciones || {});
+  const ratings = {};
+  for (const d of TODAS_DIMENSIONES) {
+    const vals = evals.map((e) => Number(e.ratings?.[d.id])).filter((v) => v >= 1 && v <= 5);
+    if (vals.length) ratings[d.id] = vals.reduce((a, c) => a + c, 0) / vals.length;
+  }
+  return { ratings, evaluadores: evals, count: evals.length };
 }
 
 // Lectura automatica de la entrevista: que salio bien, que es regular
